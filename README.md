@@ -7,9 +7,9 @@
 
 > **⚠️ IMPORTANT DISCLAIMER**
 > 
-> This script is **NOT an official Microsoft solution** and is **not supported** under any Microsoft support program. It is provided **AS IS without warranty** under the MIT License. Use at your own risk - Microsoft disclaims all liability for any damages arising from its use.
+> This script is **NOT an official Microsoft solution** and is **not supported** under any Microsoft support program. It is provided **AS IS without warranty** under the MIT License. Use at your own risk - the authors disclaim all liability for any damages arising from its use.
 
-A PowerShell script to scan and inventory all Azure OpenAI and AI Services model deployments across your Azure environment.
+A PowerShell script to scan and inventory all model deployments across your Foundry resources.
 
 ## Quick Start (Azure Cloud Shell - Recommended)
 
@@ -123,8 +123,7 @@ For detailed troubleshooting guidance, see [TROUBLESHOOTING.md](TROUBLESHOOTING.
 ## What's Scanned
 
 The script finds deployments in:
-- **Azure OpenAI Service** resources
-- **Azure AI Services** (multi-service) resources
+- All **Foundry resources** 
 - All resource groups in the specified subscription(s)
 - All model types: GPT, Codex, DALL-E, Whisper, text-embedding, etc.
 
