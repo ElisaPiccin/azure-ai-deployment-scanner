@@ -18,6 +18,14 @@ A PowerShell script to scan and inventory all Azure OpenAI and AI Services model
 3. **Run the script**: `./Get-AzureAIDeployments.ps1` (shows all deployments by default)
 4. **Download results**: Download the generated Excel file from Cloud Shell
 
+## TLDR - Quick Demo
+
+> **🎥 Watch it in action!**
+> 
+> ![Azure AI Deployment Scanner Demo](demo.gif)
+> 
+> **What you'll see:** Upload script → Run single command → Download Excel results with all your Azure AI deployments!
+
 ## Default Behavior
 
 **When run without parameters**, the script:
