@@ -51,7 +51,7 @@ OUTPUT:
 }
 
 # Prerequisites check
-Write-Host "Azure AI Deployments Scanner v3.0" -ForegroundColor Green
+Write-Host "Azure AI Deployments Scanner v1.0" -ForegroundColor Green
 Write-Host "===================================" -ForegroundColor Green
 Write-Host ""
 
