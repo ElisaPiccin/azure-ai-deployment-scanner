@@ -1,0 +1,29 @@
+# Azure AI Deployments Scanner - Local Working Folders
+# Keep these folders local and exclude from Git
+
+# Deprecated versions and development files
+_deprecated/
+
+# Generated deployment results (may contain sensitive data)
+deployment-results/
+*.xlsx
+*.csv
+
+# PowerShell execution artifacts
+*.log
+*.tmp
+
+# IDE and editor files
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
