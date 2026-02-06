@@ -15,18 +15,18 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 
 ## Quick Start (Azure Cloud Shell - Recommended)
 
-1. **Download script** from [Get-AzureAIDeployments.ps1](https://github.com/elisapiccin/azure-ai-deployment-scanner/raw/main/Get-AzureAIDeployments.ps1)
+1. **Download script** from [Get-AzureAIDeployments.ps1](https://github.com/elisapiccin/azure-ai-deployment-scanner/blob/main/Get-AzureAIDeployments.ps1)
 2. **Start Azure Cloud Shell** from the Azure portal
 3. **Switch to PowerShell**: `pwsh` (if currently in bash)
 4. **Run the script**: `./Get-AzureAIDeployments.ps1` (shows all deployments by default)
 5. **Download results**: Download the generated Excel file from Cloud Shell
 
 ## TLDR - Action time
-> **🚀 Quick Start**
+> **🚀 Run Azure AI Deployment Scanner**
 > 
 > ![Start Azure AI Deployment Scanner](demo-start-cloudshell.gif)
 > 
-> **📄 Get your output**
+> **📄 Download your output**
 > 
 > ![Download deployments summary](demo-download-output.gif)
 
@@ -117,7 +117,7 @@ The script provides:
 | CreatedDate | When deployment was created |
 | VersionUpgradeOption | Version upgrade policy (e.g., OnceNewDefaultVersionAvailable) |
 
-> **Note**: Model retirement dates are not available through the Azure CLI API. Check the [Microsoft Foundry model deprecation and retirements documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements) for the latest retirement announcements.
+> **Note**: Model retirement dates are not currently available through the Azure CLI API. Check the [Microsoft Foundry model deprecation and retirements documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements) for the latest retirement announcements.
 
 ## Troubleshooting
 

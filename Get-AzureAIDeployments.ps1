@@ -1,7 +1,7 @@
 # Azure AI Deployments Scanner
-# Scans all Azure OpenAI and AI Services deployments across subscriptions
-# Author: Created for Azure AI deployment management
-# Version: 3.0
+# Scans all Azure OpenAI and Foundry model deployments across subscriptions
+# Created for Azure AI deployment lifecycle management
+# Version: 1.0
 
 param(
     [string]$ModelFilter = "",
@@ -19,7 +19,7 @@ if ($Help) {
 Azure AI Deployments Scanner
 ============================
 
-Scans Azure OpenAI and AI Services resources for model deployments.
+Scans Azure OpenAI and Foundry model deployments for model deployments.
 
 USAGE:
   .\Get-AzureAIDeployments.ps1 [OPTIONS]
