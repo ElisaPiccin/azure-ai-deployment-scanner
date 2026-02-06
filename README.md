@@ -11,7 +11,7 @@
 
 A PowerShell script to scan and inventory all model deployments across your Foundry resources.
 
-🔍 This tool automates the retrieval of model deployment information across Foundry resources and projects, providing visibility into deployments that are not available through Azure Resource Graph queries.
+🔍 This tool automates the retrieval of model deployment information across Azure Open AI and Foundry resources, providing visibility into deployments that are not available through Azure Resource Graph queries.
 
 ## Quick Start (Azure Cloud Shell - Recommended)
 
