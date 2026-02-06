@@ -127,7 +127,7 @@ For detailed troubleshooting guidance, see [TROUBLESHOOTING.md](TROUBLESHOOTING.
 ## What's Scanned
 
 The script finds deployments in:
-- All **Foundry resources** 
+- All **Foundry** and **Azure Open AI resources** 
 - All resource groups in the specified subscription(s)
 - All model types: GPT, Codex, DALL-E, Whisper, text-embedding, etc.
 
