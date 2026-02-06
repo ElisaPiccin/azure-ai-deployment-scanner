@@ -19,7 +19,7 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 2. **Start Azure Cloud Shell** from the Azure portal
 3. **Switch to PowerShell**: `pwsh` (if currently in bash)
 4. **Upload the script**: click on **Manage files -> Upload** and upload the script
-5. **Run the script**: `./Get-AzureAIDeployments.ps1` (shows all deployments by default, see [Usage Examples](#usage-examples) for filtering options)
+5. **Run the script**: `./Get-AzureAIDeployments.ps1` (shows all deployments by default, see the [User Guide](#user-guide) for filtering options)
 6. **Download results**: copy the output file name from the shell output, click on **Manage files -> Download**, paste the file name and click on the pop-up to download it
 
 ## TLDR - Action time
@@ -61,7 +61,7 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 6. **Download results**: Use Cloud Shell download button to get the Excel file
 
 
-## Usage Examples
+## User Guide
 
 ```powershell
 # Show help
