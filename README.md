@@ -16,7 +16,7 @@ A PowerShell script to scan and inventory all model deployments across your Azur
 ## ✨ What's New in v2.0
 
 - **🗓️ Automatic Retirement Data**: Fetches the latest model retirement schedules directly from Microsoft's official documentation
-- **🔄 Replacement Recommendations**: Identifies recommended replacement models for retiring deployments
+- **🔄 Replacement Model Detection**: Identify the replacement model for retiring deployments
 - **🎛️ Flexible Output**: New `-NoRetirementData` parameter to disable retirement data if needed (original v1 format)
 
 ## Quick Start (Azure Cloud Shell - Recommended)
