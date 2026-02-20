@@ -1,6 +1,10 @@
 # Azure AI Deployments Scanner - Local Working Folders
 # Keep these folders local and exclude from Git
 
+# Learning materials and documentation
+ms-learn/
+mc/
+
 # Deprecated versions and development files
 _deprecated/
 
