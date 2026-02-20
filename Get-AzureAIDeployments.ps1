@@ -207,8 +207,8 @@ function Join-DeploymentWithRetirement {
 }
 
 # Prerequisites check
-Write-Host "Azure AI Deployments Scanner with Retirement Data v2.0 (With Disclaimer)" -ForegroundColor Green
-Write-Host "==========================================================================" -ForegroundColor Green
+Write-Host "Azure AI Deployments Scanner with Retirement Data v2.0" -ForegroundColor Green
+Write-Host "======================================================" -ForegroundColor Green
 Write-Host ""
 
 # Check if Azure CLI is installed
