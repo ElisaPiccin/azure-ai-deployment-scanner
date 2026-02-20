@@ -9,9 +9,15 @@
 > 
 > This script is **NOT an official Microsoft solution** and is **not supported** under any Microsoft support program. It is provided **AS IS without warranty** under the MIT License. Use at your own risk - the authors disclaim all liability for any damages arising from its use.
 
-A PowerShell script to scan and inventory all model deployments across your Foundry resources.
+A PowerShell script to scan and inventory all model deployments across your Azure AI and Foundry resources with built-in retirement data integration.
 
-🔍 This tool automates the retrieval of model deployment information across Azure Open AI and Foundry resources, providing visibility into deployments that are not available through Azure Resource Graph queries.
+🔍 This tool automates the retrieval of model deployment information across Azure OpenAI and AI Services resources, providing visibility into deployments that are not available through Azure Resource Graph queries. 
+
+## ✨ What's New in v2.0
+
+- **🗓️ Automatic Retirement Data**: Fetches the latest model retirement schedules directly from Microsoft's official documentation
+- **🔄 Replacement Recommendations**: Identifies recommended replacement models for retiring deployments
+- **🎛️ Flexible Output**: New `-NoRetirementData` parameter to disable retirement data if needed (original v1 format)
 
 ## Quick Start (Azure Cloud Shell - Recommended)
 
@@ -37,7 +43,8 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 - Scans **all accessible subscriptions** in your Azure tenant
 - Shows **all deployments** (no filtering)
 - Outputs results in **Excel format** (with auto-formatting)
-- Saves results with timestamp: `deployments-results-YYYYMMDD-HHMMSS.xlsx`
+- **Includes retirement data** for proactive lifecycle management  
+- Saves results with timestamp: `deployments-results-v2-YYYYMMDD-HHMMSS.xlsx`
 
 ## Azure Cloud Shell (Recommended)
 
@@ -67,7 +74,7 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 # Show help
 ./Get-AzureAIDeployments.ps1 -Help
 
-# Default: scan all deployments across all accessible subscriptions (Excel output)
+# Default: scan all deployments across all accessible subscriptions (Excel output with retirement data)
 ./Get-AzureAIDeployments.ps1
 
 # Explicit all deployments scan
@@ -85,6 +92,9 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 # Output to CSV format instead of Excel
 ./Get-AzureAIDeployments.ps1 -OutputFormat CSV
 
+# Exclude retirement data (original v1 output format)
+./Get-AzureAIDeployments.ps1 -All -NoRetirementData
+
 # Find GPT models in current subscription with Excel output
 ./Get-AzureAIDeployments.ps1 -ModelFilter "gpt" -CurrentSubscriptionOnly
 ```
@@ -94,10 +104,12 @@ A PowerShell script to scan and inventory all model deployments across your Foun
 The script provides:
 
 - **On-screen results** with color-coded progress, status and summary statistics showing model and resource group distribution
-- **Excel export** with timestamp (`deployments-results-YYYYMMDD-HHMMSS.xlsx`) 
+- **Excel export** with timestamp (`deployments-results-v2-YYYYMMDD-HHMMSS.xlsx`) 
   - Auto-formatted with filters, frozen headers, and table styling
+  - **NEW**: Includes retirement data and replacement model recommendations
   - Ready for analysis and sharing
 - **(Optionally) CSV export** available with `-OutputFormat CSV` parameter
+- **(Optionally) Original format** available with `-NoRetirementData` parameter
 
 ### Output Columns
 
@@ -111,14 +123,16 @@ The script provides:
 | Model | Model name (e.g., gpt-4o, gpt-4o-mini) |
 | Version | Model version (e.g 2024-11-20)|
 | Status | Deployment status |
-| Sku | Deplyment type (e.g. DataZoneStandard) |
+| Sku | Deployment type (e.g. DataZoneStandard) |
 | Capacity | Allocated capacity |
 | Endpoint | Service endpoint URL |
 | Location | Model provider (e.g. OpenAI) |
 | CreatedDate | When deployment was created |
 | VersionUpgradeOption | Version upgrade policy (e.g., OnceNewDefaultVersionAvailable) |
+| **RetirementDate** | **Model retirement date (NEW in v2.0)** |
+| **ReplacementModel** | **Recommended replacement model (NEW in v2.0)** |
 
-> **Note**: Model retirement dates are not currently available through the Azure CLI API. Check the [Microsoft Foundry model deprecation and retirements documentation](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements) for the latest retirement announcements.
+> **NEW in v2.0**: Retirement data is automatically fetched from official Microsoft documentation and joined with your deployment data to provide proactive lifecycle management insights. Use `-NoRetirementData` to exclude these columns if needed.
 
 ## Troubleshooting
 
@@ -169,8 +183,8 @@ If this tool helped you manage your Azure AI deployments, please give it a star!
 
 ---
 
-**Version**: 1.0  
+**Version**: 2.0  
 **Recommended Platform**: Azure Cloud Shell (PowerShell mode)  
 **Compatibility**: PowerShell 5.1+ (PowerShell 7+ recommended), Windows/Linux/macOS (with PowerShell Core)  
 **Dependencies**: Azure CLI 2.37.0+ (pre-installed in Cloud Shell)  
-**Default Output**: Excel format with auto-formatting and filters
+**Default Output**: Excel format with retirement data, auto-formatting and filters

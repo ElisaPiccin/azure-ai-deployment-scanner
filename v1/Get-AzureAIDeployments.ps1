@@ -1,8 +1,7 @@
-# Azure AI Deployments Scanner with Retirement Data
+# Azure AI Deployments Scanner
 # Scans all Azure OpenAI and Foundry model deployments across subscriptions
-# Includes model retirement dates and replacement information
 # Created for Azure AI deployment lifecycle management
-# Version: 2.0 with Disclaimer
+# Version: 1.0
 
 param(
     [string]$ModelFilter = "",
@@ -11,17 +10,16 @@ param(
     [string]$OutputFormat = "Excel",
     [switch]$All,
     [switch]$CurrentSubscriptionOnly,
-    [switch]$NoRetirementData,
     [switch]$Help
 )
 
 # Show help if requested
 if ($Help) {
     @"
-Azure AI Deployments Scanner with Retirement Data
-=================================================
+Azure AI Deployments Scanner
+============================
 
-Scans Azure OpenAI and Foundry model deployments and includes retirement information.
+Scans Azure OpenAI and Foundry model deployments for model deployments.
 
 USAGE:
   .\Get-AzureAIDeployments.ps1 [OPTIONS]
@@ -31,8 +29,7 @@ OPTIONS:
   -ModelFilter <string>      Filter by model name (e.g., "gpt-4o")
   -SubscriptionId <id>       Scan specific subscription only
   -CurrentSubscriptionOnly   Scan only current subscription (default scans all accessible)
-  -OutputFormat <format>     Output format: CSV or Excel (default)
-  -NoRetirementData          Exclude retirement date and replacement model columns (original format)
+  -OutputFormat <format>     Output format: CSV (default) or Excel
   -Help                      Show this help message
 
 EXAMPLES:
@@ -43,10 +40,9 @@ EXAMPLES:
   .\Get-AzureAIDeployments.ps1 -CurrentSubscriptionOnly -ModelFilter "gpt-4o"
   .\Get-AzureAIDeployments.ps1 -All -OutputFormat Excel
   .\Get-AzureAIDeployments.ps1 -All -OutputFormat CSV
-  .\Get-AzureAIDeployments.ps1 -All -NoRetirementData
+  .\Get-AzureAIDeployments.ps1 -ModelFilter "gpt-4o" -OutputFormat Excel
 
 OUTPUT:
-  Results include retirement dates and replacement model information (unless -NoRetirementData is used).
   Results are displayed on screen and saved to file (format based on -OutputFormat parameter)
   Excel format requires ImportExcel PowerShell module
 
@@ -54,161 +50,9 @@ OUTPUT:
     exit 0
 }
 
-# Function to extract retirement data
-function Get-RetirementData {
-    Write-Host "Fetching latest model retirement data from Microsoft Azure AI docs..." -ForegroundColor Cyan
-    
-    # GitHub raw content URL
-    $githubUrl = "https://raw.githubusercontent.com/MicrosoftDocs/azure-ai-docs/main/articles/ai-foundry/openai/includes/retirement/models.md"
-    
-    try {
-        # Download the markdown content
-        $response = Invoke-WebRequest -Uri $githubUrl -UseBasicParsing
-        $content = $response.Content
-        Write-Host "✓ Successfully downloaded model retirement data" -ForegroundColor Green
-    } catch {
-        Write-Host "⚠ WARNING: Failed to download retirement data: $($_.Exception.Message)" -ForegroundColor Yellow
-        Write-Host "⚠ WARNING: Continuing without retirement information. Output will not include RetirementDate and ReplacementModel columns." -ForegroundColor Yellow
-        Write-Host ""
-        return @()
-    }
-    
-    # Split content into lines for processing
-    $lines = $content -split "`n"
-    
-    $allModels = @()
-    $currentSection = ""
-    $inTable = $false
-    $tableHeaders = @()
-    
-    # Process each line
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        $line = $lines[$i].Trim()
-        
-        # Detect section headers
-        if ($line -match "^###?\s*(Text generation|Audio|Image and video|Embedding)") {
-            $currentSection = $matches[1]
-            $inTable = $false
-            continue
-        }
-        
-        # Detect table headers (lines with | Model | Version | etc.)
-        if ($line -match "^\|\s*Model" -and $currentSection) {
-            $tableHeaders = $line -split '\|' | Where-Object { $_.Trim() -ne "" } | ForEach-Object { $_.Trim() }
-            $inTable = $true
-            # Skip the separator line (usually next line with |---|---|)
-            $i++
-            continue
-        }
-        
-        # Process table data rows
-        if ($inTable -and $line -match "^\|" -and $line -notmatch "^\|\s*-+\s*\|" -and $currentSection) {
-            $cells = $line -split '\|' | Where-Object { $_.Trim() -ne "" } | ForEach-Object { $_.Trim() }
-            
-            if ($cells.Count -ge 3) {  # Ensure we have at least model, version, and one more column
-                # Map the model type
-                $modelType = switch ($currentSection) {
-                    "Text generation" { "Text Generation" }
-                    "Audio" { "Audio" }
-                    "Image and video" { "Image/Video" }
-                    "Embedding" { "Embedding" }
-                    default { $currentSection }
-                }
-                
-                # Clean function to remove backticks and extra whitespace
-                function Clean-Text($text) {
-                    if (-not $text) { return "" }
-                    return $text.Trim() -replace '`', ''
-                }
-                
-                # Create model object with standardized properties
-                $model = [PSCustomObject]@{
-                    ModelType = $modelType
-                    ModelName = Clean-Text $cells[0]
-                    Version = Clean-Text $cells[1]
-                    LifecycleStage = Clean-Text $cells[2]
-                    DeprecationDate = if ($cells.Count -gt 3) { Clean-Text $cells[3] } else { "" }
-                    RetirementDate = if ($cells.Count -gt 4) { Clean-Text $cells[4] } else { "" }
-                    ReplacementModel = if ($cells.Count -gt 5) { Clean-Text $cells[5] } else { "" }
-                }
-                
-                $allModels += $model
-            }
-        }
-        
-        # Exit table when we hit a new section or paragraph
-        if ($inTable -and ($line -eq "" -or ($line -match "^#" -and $line -notmatch "^###"))) {
-            $inTable = $false
-        }
-    }
-    
-    Write-Host "✓ Parsed $($allModels.Count) retirement records" -ForegroundColor Green
-    return $allModels
-}
-
-# Function to join deployment data with retirement data
-function Join-DeploymentWithRetirement {
-    param(
-        [Parameter(Mandatory)]
-        $Deployments,
-        [Parameter(Mandatory)]
-        $RetirementData
-    )
-    
-    Write-Host "Joining deployment data with retirement information..." -ForegroundColor Cyan
-    
-    $joinedDeployments = @()
-    
-    foreach ($deployment in $Deployments) {
-        # Find matching retirement record (take first match only to avoid arrays)
-        $retirementRecord = $RetirementData | Where-Object { 
-            $_.ModelName -eq $deployment.Model -and $_.Version -eq $deployment.Version
-        } | Select-Object -First 1
-        
-        # Helper function to safely convert to string (handles arrays and empty values)
-        function Convert-ToSafeString($value) {
-            if (-not $value) { return "N/A" }
-            if ($value -is [Array]) {
-                $nonEmptyValues = $value | Where-Object { $_ -and $_.ToString().Trim() -ne "" }
-                if ($nonEmptyValues) {
-                    return ($nonEmptyValues -join "; ").Trim()
-                } else {
-                    return "N/A"
-                }
-            }
-            return $value.ToString().Trim()
-        }
-        
-        # Create new deployment object with retirement data
-        $joinedDeployment = [PSCustomObject]@{
-            SubscriptionId = $deployment.SubscriptionId
-            SubscriptionName = $deployment.SubscriptionName
-            ResourceGroup = $deployment.ResourceGroup
-            Resource = $deployment.Resource
-            Deployment = $deployment.Deployment
-            Model = $deployment.Model
-            Version = $deployment.Version
-            Status = $deployment.Status
-            Sku = $deployment.Sku
-            Capacity = $deployment.Capacity
-            Endpoint = $deployment.Endpoint
-            Location = $deployment.Location
-            CreatedDate = $deployment.CreatedDate
-            VersionUpgradeOption = $deployment.VersionUpgradeOption
-            RetirementDate = if ($retirementRecord) { Convert-ToSafeString $retirementRecord.RetirementDate } else { "N/A" }
-            ReplacementModel = if ($retirementRecord) { Convert-ToSafeString $retirementRecord.ReplacementModel } else { "N/A" }
-        }
-        
-        $joinedDeployments += $joinedDeployment
-    }
-    
-    Write-Host "✓ Joined $($joinedDeployments.Count) deployment records with retirement data" -ForegroundColor Green
-    return $joinedDeployments
-}
-
 # Prerequisites check
-Write-Host "Azure AI Deployments Scanner with Retirement Data v2.0 (With Disclaimer)" -ForegroundColor Green
-Write-Host "==========================================================================" -ForegroundColor Green
+Write-Host "Azure AI Deployments Scanner v1.0" -ForegroundColor Green
+Write-Host "===================================" -ForegroundColor Green
 Write-Host ""
 
 # Check if Azure CLI is installed
@@ -253,25 +97,6 @@ try {
     exit 1
 }
 
-Write-Host ""
-
-# Get retirement data first (unless explicitly disabled)
-if ($NoRetirementData) {
-    Write-Host "Retirement data disabled via -NoRetirementData parameter" -ForegroundColor Yellow
-    $retirementData = @()
-    $hasRetirementData = $false
-} else {
-    $retirementData = Get-RetirementData
-    $hasRetirementData = ($retirementData.Count -gt 0)
-}
-
-if ($hasRetirementData -and -not $NoRetirementData) {
-    Write-Host "✓ Retirement data available - will include RetirementDate and ReplacementModel columns" -ForegroundColor Green
-} elseif ($NoRetirementData) {
-    Write-Host "✓ Running in basic mode - retirement data columns excluded by user choice" -ForegroundColor Green
-} else {
-    Write-Host "⚠ No retirement data available - output will match original format" -ForegroundColor Yellow
-}
 Write-Host ""
 
 $allDeployments = @()
@@ -338,7 +163,6 @@ foreach ($subscription in $subscriptions) {
                     Write-Host "  -> Found $($deployments.Count) deployment(s)" -ForegroundColor Green
                     
                     foreach ($deployment in $deployments) {
-                        # Create base deployment object (same structure regardless of retirement data option)
                         $allDeployments += [PSCustomObject]@{
                             SubscriptionId = $resource.subscriptionId
                             SubscriptionName = $resource.subscriptionName
@@ -354,6 +178,8 @@ foreach ($subscription in $subscriptions) {
                             Location = $deployment.properties.model.format
                             CreatedDate = $deployment.systemData.createdAt
                             VersionUpgradeOption = if ($deployment.properties.versionUpgradeOption) { $deployment.properties.versionUpgradeOption } else { "N/A" }
+                            # RetirementDate not available through Azure CLI API
+                            # Check Microsoft documentation for model retirement announcements
                         }
                     }
                 } else {
@@ -375,11 +201,6 @@ if ($totalResources -eq 0) {
     Write-Host "No AI Services resources found in any accessible subscription." -ForegroundColor Red
     Write-Host "Make sure you have access to Azure OpenAI or AI Services resources." -ForegroundColor Yellow
     exit 0
-}
-
-# Join deployment data with retirement data if available and not disabled
-If ($allDeployments.Count -gt 0 -and $hasRetirementData -and -not $NoRetirementData) {
-    $allDeployments = Join-DeploymentWithRetirement -Deployments $allDeployments -RetirementData $retirementData
 }
 
 # Apply filter if specified
@@ -410,9 +231,9 @@ if ($filteredDeployments.Count -eq 0) {
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
     
     if ($OutputFormat -eq "Excel") {
-        $timestampedFile = "deployments-results-v2-$timestamp.xlsx"
+        $timestampedFile = "deployments-results-$timestamp.xlsx"
         
-        # Export to Excel with formatting (start data after disclaimer)
+        # Export to Excel with formatting
         $excelParams = @{
             AutoSize = $true
             AutoFilter = $true
@@ -420,41 +241,17 @@ if ($filteredDeployments.Count -eq 0) {
             BoldTopRow = $true
             WorksheetName = "Azure AI Deployments"
             TableStyle = "Medium2"
-            StartRow = 4  # Start data after disclaimer
         }
         
-        # Add disclaimer to Excel
-        $disclaimerText = "DISCLAIMER: This script is NOT an official Microsoft solution and is not supported under any Microsoft support program. Use at your own discretion."
-        
         $filteredDeployments | Export-Excel -Path $timestampedFile @excelParams
-        
-        # Add disclaimer at the top of the worksheet
-        $excel = Open-ExcelPackage -Path $timestampedFile
-        $worksheet = $excel.Workbook.Worksheets["Azure AI Deployments"]
-        $worksheet.Cells["A1"].Value = $disclaimerText
-        $worksheet.Cells["A1"].Style.Font.Bold = $true
-        $worksheet.Cells["A1"].Style.Font.Color.SetColor([System.Drawing.Color]::Red)
-        $worksheet.Cells["A1:E1"].Merge = $true
-        $worksheet.Cells["A1"].Style.WrapText = $true
-        Close-ExcelPackage $excel
         
         Write-Host "Results saved to:" -ForegroundColor Green
         Write-Host "  - $timestampedFile" -ForegroundColor White
     } else {
-        $timestampedFile = "deployments-results-v2-$timestamp.csv"
+        $timestampedFile = "deployments-results-$timestamp.csv"
         
-        # Add disclaimer to CSV file
-        $disclaimer = @(
-            "# DISCLAIMER: This script is NOT an official Microsoft solution and is not supported under any Microsoft support program.",
-            "# Use at your own discretion.",
-            "#"
-        )
-        
-        # Write disclaimer first
-        $disclaimer | Out-File -FilePath $timestampedFile -Encoding UTF8
-        
-        # Export to CSV and append to file
-        $filteredDeployments | Export-Csv -Path $timestampedFile -NoTypeInformation -Append
+        # Export to CSV
+        $filteredDeployments | Export-Csv -Path $timestampedFile -NoTypeInformation
         
         Write-Host "Results saved to:" -ForegroundColor Green
         Write-Host "  - $timestampedFile" -ForegroundColor White
@@ -464,14 +261,6 @@ if ($filteredDeployments.Count -eq 0) {
     Write-Host ""
     Write-Host "SUMMARY:" -ForegroundColor Cyan
     Write-Host "Total deployments: $($filteredDeployments.Count)" -ForegroundColor White
-    
-    # Retirement status summary (only if retirement data is available and not disabled)
-    if ($hasRetirementData -and -not $NoRetirementData) {
-        $retiringModels = $filteredDeployments | Where-Object { $_.RetirementDate -ne "N/A" -and $_.RetirementDate.Trim() -ne "" }
-        if ($retiringModels.Count -gt 0) {
-            Write-Host "Models with retirement dates: $($retiringModels.Count)" -ForegroundColor Yellow
-        }
-    }
     
     # Subscription distribution (if multiple subscriptions were scanned)
     if ($subscriptions.Count -gt 1 -and $filteredDeployments.Count -gt 0) {
@@ -502,11 +291,6 @@ if ($filteredDeployments.Count -eq 0) {
 Write-Host ""
 Write-Host "Scan completed!" -ForegroundColor Green
 Write-Host "You can now download your deployments output file ($timestampedFile)." -ForegroundColor Green
-
-Write-Host ""
-Write-Host "DISCLAIMER:" -ForegroundColor Yellow
-Write-Host "This script is NOT an official Microsoft solution and is not supported under any Microsoft support program." -ForegroundColor Yellow
-Write-Host "Use at your own discretion." -ForegroundColor Yellow
 
 Write-Host ""
 Write-Host "For detailed retirement schedules, please visit: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/model-retirements" -ForegroundColor Cyan
