@@ -58,8 +58,8 @@ OUTPUT:
 function Get-RetirementData {
     Write-Host "Fetching latest model retirement data from Microsoft Azure AI docs..." -ForegroundColor Cyan
     
-    # GitHub raw content URL
-    $githubUrl = "https://raw.githubusercontent.com/MicrosoftDocs/azure-ai-docs/main/articles/ai-foundry/openai/includes/retirement/models.md"
+    # GitHub raw content URL - use raw.githubusercontent.com for actual markdown content
+    $githubUrl = "https://raw.githubusercontent.com/MicrosoftDocs/azure-ai-docs/main/articles/foundry/openai/includes/retirement/models.md"
     
     try {
         # Download the markdown content
@@ -73,8 +73,8 @@ function Get-RetirementData {
         return @()
     }
     
-    # Split content into lines for processing
-    $lines = $content -split "`n"
+    # Split content into lines for processing - handle different line endings
+    $lines = $content -split "`r?`n" | ForEach-Object { $_.Trim() }
     
     $allModels = @()
     $currentSection = ""
