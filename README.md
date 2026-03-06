@@ -9,15 +9,22 @@
 > 
 > This script is **NOT an official Microsoft solution** and is **not supported** under any Microsoft support program. It is provided **AS IS without warranty** under the MIT License. Use at your own risk - the authors disclaim all liability for any damages arising from its use.
 
-A PowerShell script to scan and inventory all model deployments across your Azure AI and Foundry resources with built-in retirement data integration.
+A PowerShell script to scan and inventory all model deployments across your Azure AI and Foundry resources with built-in retirement data and usage metrics.
 
 🔍 This tool automates the retrieval of model deployment information across Azure OpenAI and AI Services resources, providing visibility into deployments that are not available through Azure Resource Graph queries. 
 
-## ✨ What's New in v2.0
+## ✨ What's New in v3.0
+
+- **📊 Azure Monitor Metrics**: Collects per-deployment usage metrics (TotalRequests, PromptTokens, GeneratedTokens) via `az monitor metrics list`
+- **⏱️ Configurable Lookback**: New `-DaysBack` parameter to control the metrics time window (default: 7 days)
+- **🎛️ Opt-out**: New `-NoMetrics` parameter to skip metrics collection
+- **📁 Resource Group Filter**: New `-ResourceGroupName` parameter to restrict scans to a specific resource group
+
+### v2.0
 
 - **🗓️ Automatic Retirement Data**: Fetches the latest model retirement schedules directly from Microsoft's official documentation
 - **🔄 Replacement Model Detection**: Identify the replacement model for retiring deployments
-- **🎛️ Flexible Output**: New `-NoRetirementData` parameter to disable retirement data if needed (no retirement date and replacement model columns in the output)
+- **🎛️ Flexible Output**: `-NoRetirementData` parameter to exclude retirement columns
 
 ## Quick Start (Azure Cloud Shell - Recommended)
 
@@ -43,8 +50,9 @@ A PowerShell script to scan and inventory all model deployments across your Azur
 - Scans **all accessible subscriptions** in your Azure tenant
 - Shows **all deployments** (no filtering)
 - Outputs results in **Excel format** (with auto-formatting)
-- **Includes retirement data** for proactive lifecycle management  
-- Saves results with timestamp: `deployments-results-v2-YYYYMMDD-HHMMSS.xlsx`
+- **Includes retirement data** for proactive lifecycle management
+- **Includes Azure Monitor metrics** (last 7 days) for usage visibility
+- Saves results with timestamp: `deployments-results-v3-YYYYMMDD-HHMMSS.xlsx`
 
 ## Azure Cloud Shell (Recommended)
 
@@ -95,6 +103,15 @@ A PowerShell script to scan and inventory all model deployments across your Azur
 # Exclude retirement data (original v1 output format)
 ./Get-AzureAIDeployments.ps1 -All -NoRetirementData
 
+# Exclude Azure Monitor metrics
+./Get-AzureAIDeployments.ps1 -All -NoMetrics
+
+# Collect metrics for the last 30 days
+./Get-AzureAIDeployments.ps1 -All -DaysBack 30
+
+# Scan a specific resource group
+./Get-AzureAIDeployments.ps1 -CurrentSubscriptionOnly -ResourceGroupName "my-rg"
+
 # Find GPT models in current subscription with Excel output
 ./Get-AzureAIDeployments.ps1 -ModelFilter "gpt" -CurrentSubscriptionOnly
 ```
@@ -104,12 +121,13 @@ A PowerShell script to scan and inventory all model deployments across your Azur
 The script provides:
 
 - **On-screen results** with color-coded progress, status and summary statistics showing model and resource group distribution
-- **Excel export** with timestamp (`deployments-results-v2-YYYYMMDD-HHMMSS.xlsx`) 
+- **Excel export** with timestamp (`deployments-results-v3-YYYYMMDD-HHMMSS.xlsx`) 
   - Auto-formatted with filters, frozen headers, and table styling
-  - **NEW**: Includes retirement data and replacement model recommendations
+  - Includes retirement data and replacement model recommendations
+  - Includes Azure Monitor usage metrics per deployment
   - Ready for analysis and sharing
 - **(Optionally) CSV export** available with `-OutputFormat CSV` parameter
-- **(Optionally) Original format** available with `-NoRetirementData` parameter
+- **(Optionally) Original format** available with `-NoRetirementData` and/or `-NoMetrics` parameters
 
 ### Output Columns
 
@@ -129,10 +147,13 @@ The script provides:
 | Location | Model provider (e.g. OpenAI) |
 | CreatedDate | When deployment was created |
 | VersionUpgradeOption | Version upgrade policy (e.g., OnceNewDefaultVersionAvailable) |
-| **RetirementDate** | **Model retirement date (NEW in v2.0)** |
-| **ReplacementModel** | **Recommended replacement model (NEW in v2.0)** |
+| **RetirementDate** | Model retirement date |
+| **ReplacementModel** | Recommended replacement model |
+| **TotalRequests_7d** | **Total API requests over the lookback period (NEW in v3.0)** |
+| **PromptTokens_7d** | **Prompt tokens consumed over the lookback period (NEW in v3.0)** |
+| **GeneratedTokens_7d** | **Generated (completion) tokens over the lookback period (NEW in v3.0)** |
 
-> **NEW in v2.0**: Retirement data is automatically fetched from official Microsoft documentation and joined with your deployment data to provide proactive lifecycle management insights. Use `-NoRetirementData` to exclude these columns if needed.
+> **NEW in v3.0**: Azure Monitor metrics are collected per deployment using `az monitor metrics list`. The column suffix (e.g. `_7d`) reflects the `-DaysBack` value. Use `-NoMetrics` to exclude these columns. Use `-NoRetirementData` to exclude retirement columns.
 
 ## Troubleshooting
 
@@ -151,6 +172,7 @@ The script finds deployments in:
 The script only needs **Reader permissions** on the target subscription(s):
 - `Microsoft.CognitiveServices/accounts/read`
 - `Microsoft.CognitiveServices/accounts/deployments/read`
+- `Microsoft.Insights/metrics/read` (for Azure Monitor metrics)
 
 **Reader role** at subscription level is sufficient for full functionality.
 
@@ -183,8 +205,8 @@ If this tool helped you manage your Azure AI deployments, please give it a star!
 
 ---
 
-**Version**: 2.0  
+**Version**: 3.0  
 **Recommended Platform**: Azure Cloud Shell (PowerShell mode)  
 **Compatibility**: PowerShell 5.1+ (PowerShell 7+ recommended), Windows/Linux/macOS (with PowerShell Core)  
 **Dependencies**: Azure CLI 2.37.0+ (pre-installed in Cloud Shell)  
-**Default Output**: Excel format with retirement data, auto-formatting and filters
+**Default Output**: Excel format with retirement data, Azure Monitor metrics, auto-formatting and filters
