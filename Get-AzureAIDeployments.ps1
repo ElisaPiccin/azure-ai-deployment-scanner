@@ -2,7 +2,7 @@
 # Scans all Azure OpenAI and Foundry model deployments across subscriptions
 # Includes model retirement dates and replacement information
 # Created for Azure AI deployment lifecycle management
-# Version: 3.0 with Azure Monitor Metrics integration
+# Version: 4.0 with Azure Monitor Metrics integration
 
 param(
     [string]$ModelFilter = "",
@@ -71,7 +71,7 @@ function Get-RetirementData {
     Write-Host "Fetching latest model retirement data from Microsoft Azure AI docs..." -ForegroundColor Cyan
     
     # GitHub raw content URL - use raw.githubusercontent.com for actual markdown content
-    $githubUrl = "https://raw.githubusercontent.com/MicrosoftDocs/azure-ai-docs/main/articles/foundry/openai/includes/retirement/models.md"
+    $githubUrl = "https://raw.githubusercontent.com/MicrosoftDocs/azure-ai-docs/main/articles/foundry/openai/includes/concepts-model-retirement-schedule-content.md"
     
     try {
         # Download the markdown content
@@ -85,72 +85,69 @@ function Get-RetirementData {
         return @()
     }
     
-    # Split content into lines for processing - handle different line endings
-    $lines = $content -split "`r?`n" | ForEach-Object { $_.Trim() }
-    
+    function ConvertTo-RetirementText($text, [switch]$EmptyDash) {
+        if (-not $text) { return "" }
+        $value = $text.Trim().Replace(([char]0x60).ToString(), "")
+        if ($EmptyDash -and $value -eq [char]0x2014) { return "" }
+        return $value
+    }
+
+    $lines = $content -split "`r?`n"
+    $expectedHeaders = @("Model", "Version", "Lifecycle", "Retirement date", "Replacement")
+    $expectedHeaderKey = $expectedHeaders -join "|"
     $allModels = @()
-    $currentSection = ""
+    $modelsByKey = @{}
+    $currentProvider = ""
     $inTable = $false
-    $tableHeaders = @()
-    
-    # Process each line
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        $line = $lines[$i].Trim()
-        
-        # Detect section headers
-        if ($line -match "^###?\s*(Text generation|Audio|Image and video|Embedding)") {
-            $currentSection = $matches[1]
+
+    foreach ($rawLine in $lines) {
+        $line = $rawLine.Trim()
+
+        if ($line -match "^###\s+(.+)$") {
+            $currentProvider = $matches[1].Trim()
             $inTable = $false
             continue
         }
-        
-        # Detect table headers (lines with | Model | Version | etc.)
-        if ($line -match "^\|\s*Model" -and $currentSection) {
-            $tableHeaders = $line -split '\|' | Where-Object { $_.Trim() -ne "" } | ForEach-Object { $_.Trim() }
-            $inTable = $true
-            # Skip the separator line (usually next line with |---|---|)
-            $i++
+
+        if (-not $line.StartsWith("|")) {
+            if ($line -eq "") { $inTable = $false }
             continue
         }
-        
-        # Process table data rows
-        if ($inTable -and $line -match "^\|" -and $line -notmatch "^\|\s*-+\s*\|" -and $currentSection) {
-            $cells = $line -split '\|' | Where-Object { $_.Trim() -ne "" } | ForEach-Object { $_.Trim() }
-            
-            if ($cells.Count -ge 3) {  # Ensure we have at least model, version, and one more column
-                # Map the model type
-                $modelType = switch ($currentSection) {
-                    "Text generation" { "Text Generation" }
-                    "Audio" { "Audio" }
-                    "Image and video" { "Image/Video" }
-                    "Embedding" { "Embedding" }
-                    default { $currentSection }
-                }
-                
-                # Clean function to remove backticks and extra whitespace
-                function Clean-Text($text) {
-                    if (-not $text) { return "" }
-                    return $text.Trim() -replace '`', ''
-                }
-                
-                # Create model object with standardized properties
-                $model = [PSCustomObject]@{
-                    ModelType = $modelType
-                    ModelName = Clean-Text $cells[0]
-                    Version = Clean-Text $cells[1]
-                    LifecycleStage = Clean-Text $cells[2]
-                    DeprecationDate = if ($cells.Count -gt 3) { Clean-Text $cells[3] } else { "" }
-                    RetirementDate = if ($cells.Count -gt 4) { Clean-Text $cells[4] } else { "" }
-                    ReplacementModel = if ($cells.Count -gt 5) { Clean-Text $cells[5] } else { "" }
-                }
-                
-                $allModels += $model
-            }
+
+        $cells = @($line.Trim("|") -split '\|' | ForEach-Object { $_.Trim() })
+
+        if (($cells -join "|") -ceq $expectedHeaderKey) {
+            $inTable = ($currentProvider -ne "")
+            continue
         }
-        
-        # Exit table when we hit a new section or paragraph
-        if ($inTable -and ($line -eq "" -or ($line -match "^#" -and $line -notmatch "^###"))) {
-            $inTable = $false
+
+        if (-not $inTable -or $cells.Count -ne $expectedHeaders.Count) { continue }
+        if (@($cells | Where-Object { $_ -notmatch '^:?-+:?$' }).Count -eq 0) { continue }
+
+        $model = [PSCustomObject]@{
+            ModelType = $currentProvider
+            ModelName = ConvertTo-RetirementText $cells[0]
+            Version = ConvertTo-RetirementText $cells[1]
+            LifecycleStage = ConvertTo-RetirementText $cells[2]
+            DeprecationDate = ""
+            RetirementDate = ConvertTo-RetirementText $cells[3] -EmptyDash
+            ReplacementModel = ConvertTo-RetirementText $cells[4] -EmptyDash
+        }
+
+        if (-not $model.ModelName -or -not $model.Version) { continue }
+
+        $modelKey = "$($model.ModelName)|$($model.Version)"
+        if (-not $modelsByKey.ContainsKey($modelKey)) {
+            $modelsByKey[$modelKey] = $model
+            $allModels += $model
+            continue
+        }
+
+        $existingModel = $modelsByKey[$modelKey]
+        if ($existingModel.LifecycleStage -ne $model.LifecycleStage -or
+            $existingModel.RetirementDate -ne $model.RetirementDate -or
+            $existingModel.ReplacementModel -ne $model.ReplacementModel) {
+            Write-Host "⚠ WARNING: Conflicting retirement records for $($model.ModelName) version $($model.Version). Keeping the first documented record." -ForegroundColor Yellow
         }
     }
     
@@ -398,7 +395,7 @@ function Join-DeploymentWithMetrics {
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 # Prerequisites check
-Write-Host "Azure AI Deployments Scanner with Retirement Data v3.0" -ForegroundColor Green
+Write-Host "Azure AI Deployments Scanner with Retirement Data v4.0" -ForegroundColor Green
 Write-Host "======================================================" -ForegroundColor Green
 Write-Host ""
 
@@ -655,7 +652,7 @@ if ($filteredDeployments.Count -eq 0) {
     
     # Save results based on output format
     $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $fileSuffix = if ($NoMetrics) { "v3-nometrics" } else { "v3" }
+    $fileSuffix = if ($NoMetrics) { "v4-nometrics" } else { "v4" }
     
     if ($OutputFormat -eq "Excel") {
         $timestampedFile = "deployments-results-$fileSuffix-$timestamp.xlsx"
